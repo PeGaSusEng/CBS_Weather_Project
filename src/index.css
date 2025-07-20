@@ -1,0 +1,90 @@
+/* Setting Tailwind */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Setting Web Agar Lebih Responsif*/
+html, body {
+  height: 100%;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+html,
+body,
+#__next {
+  height: 100%;
+}
+
+
+.leaflet-image-layer img {
+  transition: opacity 0.3s ease-in-out;
+}
+
+
+@keyframes cloud-bounce {
+  0% {
+    transform: translateX(-10px);
+  }
+  50% {
+    transform: translateX(10px);
+  }
+  100% {
+    transform: translateX(-10px);
+  }
+}
+
+@keyframes rain-dot {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(600px) rotate(0deg);
+    opacity: 0;
+  }
+}
+
+.animate-cloud-bounce {
+  animation: cloud-bounce 12s ease-in-out infinite;
+}
+
+.animate-rain-dot {
+  animation: rain-dot 2s linear infinite;
+}
+
+@layer utilities {
+  .animate-fadein {
+    animation: fadein 0.5s;
+  }
+  @keyframes fadein {
+    from { opacity: 0; transform: translateY(-30px);}
+    to { opacity: 1; transform: translateY(0);}
+  }
+}
+
+@media (max-width: 480px) {
+  .element {
+    padding: 10px;
+    margin: 5px;
+    font-size: 14px;
+  }
+  .pie-chart {
+    width: 100%;
+    height: 200px;
+  }
+}
+
+
+:root {
+  --font-roboto: 'Roboto', sans-serif;
+}
+
+
