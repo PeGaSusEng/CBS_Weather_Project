@@ -61,14 +61,14 @@ export default function TabelPrediksiHujan() {
           const tanggal = timestamp.slice(0, 10).split('-').reverse().join('/');
           const jam = timestamp.slice(11, 16);
 
-          // Ambil data prediksi untuk CNN lag 30 dan lag 60
+
           const cnnData30 = arrCnn30.find(d => d.timestamp === timestamp);
           const cnnData60 = arrCnn60.find(d => d.timestamp === timestamp);
           
           const prediksiCNN30 = cnnData30 ? cnnData30.chance : undefined;
           const prediksiCNN60 = cnnData60 ? cnnData60.chance : undefined;
 
-          // Klasifikasi berdasarkan prediksi CNN untuk Lag 30 dan Lag 60
+
           const labelCNN30 = prediksiCNN30 !== undefined
             ? (Number(prediksiCNN30) > 0.5 ? "Hujan" : "Tidak Hujan")
             : "-";
@@ -76,7 +76,7 @@ export default function TabelPrediksiHujan() {
             ? (Number(prediksiCNN60) > 0.5 ? "Hujan" : "Tidak Hujan")
             : "-";
 
-          // CH AWS & Label OBS sinkronisasi
+
           let chAws: number | string = "-";
           if (arrAwsRes && arrAwsRes.length) {
             let total = 0, count = 0;
@@ -94,7 +94,7 @@ export default function TabelPrediksiHujan() {
             if (count) chAws = (total / count).toFixed(2);
           }
 
-          // Klasifikasi berdasarkan BMKG untuk AWS
+
           const labelObs = chAws === "-" ? "-" : classifyHujan(Number(chAws));
 
           let chGsmap: number | string = "-";
@@ -109,7 +109,6 @@ export default function TabelPrediksiHujan() {
             }
           }
 
-          // Klasifikasi berdasarkan BMKG untuk GSMaP
           const labelGsmap = chGsmap === "-" ? "-" : classifyHujan(Number(chGsmap));
           return {
             tanggal,
@@ -144,7 +143,6 @@ export default function TabelPrediksiHujan() {
     return () => clearInterval(intervalId);
   }, []);
 
-  // Fungsi untuk klasifikasi curah hujan berdasarkan BMKG
   function classifyHujan(ch: number): string {
     if (ch >= 0.1 && ch <= 10) return "Hujan Ringan";
     if (ch > 10 && ch <= 50) return "Hujan Sedang";
@@ -170,11 +168,10 @@ export default function TabelPrediksiHujan() {
                 <th className="p-2">Jam</th>
                 <th className="p-2">CH AWS (mm)</th>
                 <th className="p-2">CH GSMaP (mm)</th>
-                <th className="p-2">Prediksi CNN Lag 30 (%)</th>
-                <th className="p-2">Prediksi CNN Lag 60 (%)</th>
+                <th className="p-2">Prakiraan (%)</th>
                 <th className="p-2">Label OBS</th>
                 <th className="p-2">Label GSMaP</th>
-                <th className="p-2">Label CNN</th>
+                <th className="p-2">Status Prakiraan</th>
               </tr>
             </thead>
             <tbody>
@@ -184,8 +181,15 @@ export default function TabelPrediksiHujan() {
                   <td className="p-2 text-center">{row.jam}</td>
                   <td className="p-2 text-center">{row.chAws}</td>
                   <td className="p-2 text-center">{row.chGsmap}</td>
-                  <td className="p-2 text-center">{row.prediksiCNN30}</td>
-                  <td className="p-2 text-center">{row.prediksiCNN60}</td>
+                  <td className="p-2 text-center">
+                    {row.prediksiCNN30 !== "-" && row.prediksiCNN60 !== "-"
+                      ? `${row.prediksiCNN30}% / ${row.prediksiCNN60}%`
+                      : row.prediksiCNN30 !== "-"
+                        ? `${row.prediksiCNN30}%`
+                        : row.prediksiCNN60 !== "-"
+                          ? `${row.prediksiCNN60}%`
+                          : "-"}
+                  </td>
                   <td className={`p-2 text-center ${row.labelObs === "Hujan" ? "text-blue-600 font-bold" : row.labelObs === "-" ? "text-gray-400" : "text-gray-500"}`}>{row.labelObs}</td>
                   <td className={`p-2 text-center ${row.labelGsmap === "Hujan" ? "text-blue-600 font-bold" : row.labelGsmap === "-" ? "text-gray-400" : "text-gray-500"}`}>{row.labelGsmap}</td>
                   <td className={`p-2 text-center ${row.labelCNN === "Hujan" ? "text-blue-600 font-bold" : row.labelCNN === "-" ? "text-gray-400" : "text-gray-500"}`}>{row.labelCNN}</td>

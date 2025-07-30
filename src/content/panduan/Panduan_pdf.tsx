@@ -18,7 +18,6 @@ export default function PDFfiles() {
 
   return (
     <div className="w-screen min-h-screen bg-white">
-      {/* Spacer agar tidak menabrak navbar */}
       <div className="mt-24 px-4 flex justify-between items-center">
         <button
           onClick={() => router.push('/')}
@@ -35,8 +34,6 @@ export default function PDFfiles() {
           ⬇ Unduh PDF
         </a>
       </div>
-
-      {/* Kontainer PDF */}
       <div className="relative w-full h-[calc(100vh-8rem)] mt-6">
         <div className="fixed bottom-4 right-4 z-[9999] flex gap-2 items-center bg-white px-3 py-2 rounded shadow text-sm">
           <ZoomOutButton />

@@ -21,8 +21,8 @@ export default function Page_Prediksi_hujan() {
   return (
     <>
       <Head>
-        <title>CBM-Prediksi Hujan</title>
-        <meta name="description" content="Sistem Prediksi Cuaca Cekungan Bandung dan Majalaya" />
+        <title>CBS-Prediksi Hujan</title>
+        <meta name="description" content="Sistem Prediksi Cuaca Cekungan Bandung dan Sekitarnya" />
       </Head>
       <div className="min-h-screen flex flex-col overflow-x-hidden overflow-y-hidden bg-white z-[1000]">
         <Navbar />

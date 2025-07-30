@@ -7,6 +7,33 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
+
+const formatNowWIB = () => {
+  const now = new Date();
+  const hh = now.getHours().toString().padStart(2, '0');
+  const mm = now.getMinutes().toString().padStart(2, '0');
+  return `${hh}:${mm} WIB`;
+};
+
+const labelProbabilitas = (prob: number | null) => {
+  if (prob === null) return 'Memuat...';
+  if (prob < 0.5) {
+    return 'Tidak hujan';
+  }
+  if (prob < 0.8) {
+    return 'Hujan Rendah';
+  }
+  if (prob < 0.95) {
+    return 'Hujan Sedang';
+  }
+  return 'Hujan Tinggi';
+};
+
+
+
+
+
+
 const FontLoader = () => (
   <Head>
     <link
@@ -21,6 +48,7 @@ type Prediksi = {
   waktu: string;
   cuaca: string;
   curah_hujan: string;
+  probabilitas_hujan?: number;
   VT?: string;
   ST?: string;
   IS?: string;
@@ -39,14 +67,26 @@ const parseWIB = (waktuString?: string | null) => {
 
 export default function Home() {
   const [data, setData] = useState<Prediksi[]>([]);
+  const [showWelcome, setShowWelcome] = useState(true);
   const [tanggalPrediksi, setTanggalPrediksi] = useState<string>('');
   const router = useRouter();
 
-  // Carousel control
+
   const [startIndex, setStartIndex] = useState(0);
   const [cardsPerPage, setCardsPerPage] = useState(4);
 
-  // Update cards per page responsively
+  
+  const [currentTime, setCurrentTime] = useState<string>(formatNowWIB());
+  const [showAll, setShowAll] = useState(false);
+
+ 
+  useEffect(() => {
+    const iv = setInterval(() => setCurrentTime(formatNowWIB()), 60_000);
+    return () => clearInterval(iv);
+  }, []);
+
+
+ 
     useEffect(() => {
       if (typeof window !== 'undefined') {
         function handleResize() {
@@ -61,18 +101,17 @@ export default function Home() {
     }, []);
 
 
-  // Fetch and merge data from lag_30 and lag_60
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch lag 30 dan lag 60 secara paralel
+       
         const [res30, res60] = await Promise.all([
           fetch('/api/info_prakiraan_cuaca_lag_30'),
           fetch('/api/info_prakiraan_cuaca_lag_60'),
         ]);
         const [json30, json60] = await Promise.all([res30.json(), res60.json()]);
 
-        // Pastikan objeknya benar
+
         const arr30 = (json30 && typeof json30 === 'object')
           ? Object.values(json30).flat() as Prediksi[]
           : [];
@@ -80,19 +119,17 @@ export default function Home() {
           ? Object.values(json60).flat() as Prediksi[]
           : [];
 
-        // Gabungkan, urutkan naik berdasar waktu
         const allPrediksi = [...arr30, ...arr60]
                  .sort((a, b) => {
          const da = parseWIB(a.waktu);
          const db = parseWIB(b.waktu);
-           // jika salah satu gagal parse, anggap sama
            if (!da || !db) return 0;
            return da.getTime() - db.getTime();
          });
 
         setData(allPrediksi);
       } catch (err) {
-        setData([]); // fallback ke array kosong
+        setData([]); 
       }
     };
     fetchData();
@@ -100,7 +137,6 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
-  // Tanggal prediksi (ambil salah satu saja, bisa dari lag 30/lag 60)
   useEffect(() => {
     const ambilTanggal = async () => {
       try {
@@ -120,7 +156,7 @@ export default function Home() {
     ambilTanggal();
   }, []);
 
-  // SIAGA (biarkan tetap, dari lag 30)
+
   const [jamPrediksi, setJamPrediksi] = useState('Memuat...');
   const [jamPrediksiMinus30, setJamPrediksiMinus30] = useState('Memuat...');
   const [probabilitasHujan, setProbabilitasHujan] = useState<number | null>(null);
@@ -165,7 +201,7 @@ export default function Home() {
 
   const isSiaga = statusSiaga === 'SIAGA';
 
-  // Hanya data waktu ke depan saja (dibanding sekarang)
+
   const now = new Date();
   const filteredData = data.filter(item => {
     const t = parseWIB(item.waktu);
@@ -173,18 +209,19 @@ export default function Home() {
 });
 
 
-  // Ambil data yang sedang tampil (slice)
-  const displayedData = filteredData.slice(startIndex, startIndex + cardsPerPage);
 
-  // Tombol prev/next enable/disable
+  const displayedData = showAll
+    ? filteredData.slice(startIndex, startIndex + cardsPerPage)
+    : filteredData.slice(0, 1);
+
+
   const canPrev = startIndex > 0;
   const canNext = startIndex + cardsPerPage < filteredData.length;
 
-  // Cek ada hujan
+
   const adaHujan = filteredData.some(item => item.cuaca?.toLowerCase() === 'hujan');
   const tidakHujan = filteredData.some(item => item.cuaca?.toLowerCase() === 'cerah');
 
-  // Gambar cuaca
   const getImageByCuaca = (cuaca: string, waktu: string) => {
     const jam = parseInt(waktu.split(':')[0]);
     const isNight = jam >= 18 || jam < 6;
@@ -193,26 +230,102 @@ export default function Home() {
     if (cuacaLower === 'cerah') return isNight ? '/logos/cerah_malam.png' : '/logos/cerah_pagi.png';
     return '/image/default.png';
   };
-
+  const nearestHujan = filteredData.find(item => item.cuaca.toLowerCase() === 'hujan');
+  const rainStatus = nearestHujan ? 'HUJAN' : 'TIDAK ADA HUJAN';
   return (
     <>
       <FontLoader />
       <Head>
-        <title>CBM-Satellite-Weather-System</title>
+        <title>CBS-Weather-System</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </Head>
-      <div className="relative w-full min-h-screen overflow-y-auto bg-weather bg-cover bg-center px-4 py-2 pt-24 pb-32 flex flex-col items-center">
+      {showWelcome ? (
+          <div className="relative w-full min-h-screen flex items-center justify-center bg-weather bg-cover bg-center px-4">
+            <div
+              className="
+                absolute inset-0
+                bg-gradient-to-tr from-purple-500 via-pink-400 to-blue-400
+                bg-[length:300%_300%] animate-gradient-pan
+              "
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, ease: 'easeOut' }}
+              className="
+                relative z-10
+                w-full
+                sm:w-11/12 md:w-3/4 lg:w-2/3 xl:w-1/2 2xl:w-2/5
+                p-6 sm:p-8
+                bg-white/20 backdrop-blur-xl
+                border border-white/30
+                rounded-3xl shadow-2xl
+                text-center
+                transition-transform hover:scale-[1.02] duration-300
+              "
+            >
+            <h1
+              className="
+                text-3xl sm:text-4xl lg:text-5xl
+                font-extrabold
+                bg-gradient-to-r from-purple-400 via-pink-500 to-red-600
+                bg-clip-text text-transparent
+                bg-[length:200%_auto] bg-[position:0%_center]
+                hover:bg-[position:100%_center]
+                transition-all duration-2000 ease-out
+                drop-shadow-lg
+                mb-4
+              "
+            >
+              Selamat datang di Sistem Cuaca CBS
+            </h1>
+
+
+              <p className="mb-6 text-sm sm:text-base text-white/90 leading-relaxed filter drop-shadow-md">
+                CBS Weather System adalah layanan prakiraan cuaca berbasis satelit yang dirancang khusus untuk wilayah Cekungan Bandung, dengan pembaruan data setiap 10 menit dan prediksi cuaca real-time hingga satu jam ke depan. Pantau aktivitas, atur notifikasi instan, rencanakan hari dengan tenang, dan nikmati momen luar ruang tanpa khawatir!
+              </p>
+              <button
+                onClick={() => setShowWelcome(false)}
+                className="
+                  inline-block
+                  px-8 py-3 sm:px-10 sm:py-4
+                  rounded-full
+                  bg-gradient-to-r from-blue-500 to-teal-400
+                  text-white font-semibold
+                  relative overflow-hidden
+                  before:absolute before:inset-0 before:bg-white/20 before:scale-0
+                  hover:before:scale-100 hover:before:opacity-0
+                  transition-all duration-300
+                  shadow-lg
+                  focus:outline-none focus:ring-4 focus:ring-blue-300/50
+                "
+              >
+                Klik Disini
+              </button>
+            </motion.div>
+          </div>
+      ) : (
+        <div className="relative w-full min-h-screen overflow-y-auto bg-weather bg-cover bg-center px-4 py-2 pt-24 pb-32 flex flex-col items-center">
         <div className="w-full flex flex-col items-center justify-start">
-          {/* Judul */}
-          <div className="text-center mt-14 mb-8 px-4 py-2 bg-black/30 rounded-xl backdrop-blur-sm shadow-md">
-            <h1 className="text-4xl sm:text-5xl font-extrabold text-white drop-shadow-md tracking-wide">
+          <div className="w-full max-w-md mx-auto mb-8 p-6 sm:p-8 bg-gradient-to-r from-blue-600 to-teal-500 rounded-3xl shadow-2xl backdrop-blur-lg border border-white/20">
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-white text-center drop-shadow-lg">
               Prakiraan Cuaca
             </h1>
-            <p className="text-white text-base sm:text-lg mt-1 font-medium tracking-wide">
+
+            <p className="mt-1 text-sm sm:text-base text-white/90 text-center">
               {tanggalPrediksi}
             </p>
+
+            <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-2">
+              <span className="text-2xl font-semibold text-white">
+                Waktu kini : {currentTime}
+              </span>
+              <span className="px-3 py-1 bg-red-600 text-white uppercase text-xs font-medium rounded-full drop-shadow">
+                {rainStatus}
+              </span>
+            </div>
           </div>
-          {/* Alert jika ada HUJAN */}
+
           <AnimatePresence>
             {adaHujan && (
               <motion.div
@@ -226,57 +339,100 @@ export default function Home() {
               </motion.div>
             )}
           </AnimatePresence>
-          {/* Alert jika tidak HUJAN */}
-          <AnimatePresence>
-            {tidakHujan && (
-              <motion.div
-                className="w-full max-w-2xl mx-auto mb-3 px-4 py-3 bg-blue-600/70 border-l-8 border-yellow-300 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 backdrop-blur"
-                initial={{ y: -30, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                <span className="animate-bounce">🌤️</span>
-                Peringatan: Prakiraan Menunjukkan Cuaca Cerah! Selamat beraktivitas 
-              </motion.div>
-            )}
-          </AnimatePresence>
-          {/* Carousel horizontal */}
-          <div className="flex items-center justify-center w-full gap-3 mt-3 mb-12 relative">
-            {/* Prev */}
+          <div className="w-full mb-4 flex justify-center">
             <button
-              aria-label="Prev"
-              onClick={() => canPrev && setStartIndex(startIndex - cardsPerPage)}
-              disabled={!canPrev}
-              className={`bg-white/80 hover:bg-white rounded-full w-14 h-14 flex items-center justify-center text-3xl font-bold shadow-lg transition
-                ${!canPrev ? 'opacity-50 cursor-pointer' : 'cursor-pointer'}
-                absolute left-0 top-1/2 -translate-y-1/2 z-10
-                sm:static sm:translate-y-0
-              `}
-              style={{ zIndex: 2 }}
+              onClick={() => setShowAll(prev => !prev)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition"
             >
-              &lt;
+              {showAll ? 'Sembunyikan' : 'Selengkapnya'}
             </button>
-            {/* Boxes */}
-            <div className="flex-1 flex justify-center items-stretch gap-7">
-              {displayedData.length === 0 ? (
-                <div className="bg-white/50 rounded-xl px-6 py-8 text-xl font-bold text-gray-700 shadow flex items-center justify-center w-full">
-                  Tidak ada prakiraan waktu ke depan.
-                </div>
-              ) : (
-                displayedData.map((item, index) => (
-                  <motion.div
-                    key={index}
-                    whileHover={{ scale: 1.06, y: -6, boxShadow: "0 8px 32px #1115" }}
-                    initial={{ opacity: 0, y: 24 }}
-                    animate={{ opacity: 6, y: 0 }}
-                    transition={{ duration: 0.4, delay: index * 0.06 }}
-                    className="relative bg-blue-transparent backdrop-blur-md rounded-2xl p-5 pb-7 min-h-[340px] flex flex-col items-center justify-between shadow-lg border border-white/30 w-[94vw] max-w-[320px]"
-                  >
-                    {/* Curah Hujan */}
-                    <span className="absolute top-2 right-2 bg-white/90 text-blue-900 text-xs font-semibold px-2 py-1 rounded shadow-md">
-                      {item.curah_hujan}
+          </div>
+          {!showAll ? (
+            <div className="w-full flex justify-center my-6">
+              {displayedData.map((item, idx) => (
+                <motion.div
+                  key={idx}
+                  whileHover={{ scale: 1.06, y: -6, boxShadow: "0 8px 32px #1115" }}
+                  initial={{ opacity: 0, y: 24 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: idx * 0.06 }}
+                  className="
+                    snap-center flex-shrink-0
+                    w-[80vw] sm:w-[45vw] md:w-[30vw] lg:w-[22vw]
+                    bg-blue-transparent backdrop-blur-md rounded-2xl
+                    p-5 pb-7 min-h-[340px] flex flex-col items-center
+                    justify-between shadow-lg border border-white/30
+                  "
+                >
+                  {labelProbabilitas(probabilitasHujan) !== 'Tidak hujan' && (
+                    <span className="absolute top-2 right-2 text-blue-900 text-xs font-semibold px-2 py-1 rounded shadow-md">
                     </span>
-                    {/* Icon Cuaca (Animasi) */}
+                  )}
+                  <motion.div
+                    animate={{ y: [0, -8, 0] }}
+                    transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
+                  >
+                    <Image
+                      src={getImageByCuaca(item.cuaca, item.waktu)}
+                      alt={item.cuaca}
+                      width={200}
+                      height={200}
+                      className="drop-shadow-md"
+                    />
+                  </motion.div>
+                  <div className="mb-4 mt-2">
+                    <p className="text-base text-white drop-shadow">{item.waktu}</p>
+                    <p className="font-bold uppercase text-2xl text-black drop-shadow">{item.cuaca}</p>
+                  </div>
+                  <button
+                    onClick={() => router.push(`/Page_deteksi_awan`)}
+                    className="text-xs text-blue-800 font-bold bg-white/40 hover:bg-white/70 px-3 py-1 rounded transition border border-white/30 shadow"
+                  >
+                    Detail
+                  </button>
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <div className="relative w-full my-4">
+              <button
+                aria-label="Prev"
+                onClick={() => canPrev && setStartIndex(startIndex - cardsPerPage)}
+                disabled={!canPrev}
+                className={`
+                  absolute top-1/2 left-2 transform -translate-y-1/2
+                  bg-white/80 hover:bg-white rounded-full p-2 shadow z-10
+                  ${!canPrev ? 'opacity-50 cursor-not-allowed' : ''}
+                `}
+              >‹</button>
+
+              <div
+                className="
+                  overflow-x-auto overflow-y-hidden scrollbar-hide
+                  scroll-smooth snap-x snap-mandatory flex gap-6
+                  px-[10vw]      /* mobile: half of (100 - 80) = 10vw */
+                  lg:px-0
+                  lg:overflow-visible
+                  lg:flex-wrap 
+                  lg:justify-center
+                  lg:snap-none
+                "
+              >
+                {displayedData.map((item, idx) => (
+                  <motion.div
+                    key={idx}
+                    className="
+                      snap-center flex-shrink-0
+                      w-[80vw] sm:w-[45vw] md:w-[30vw] lg:w-[22vw]
+                      bg-blue-transparent backdrop-blur-md rounded-2xl
+                      p-5 pb-7 min-h-[340px] flex flex-col items-center
+                      justify-between shadow-lg border border-white/30
+                    "
+                  >
+                    {labelProbabilitas(probabilitasHujan) !== 'Tidak hujan' && (
+                      <span className="absolute top-2 right-2 text-blue-900 text-xs font-semibold px-2 py-1 rounded shadow-md">
+                      </span>
+                    )}
                     <motion.div
                       animate={{ y: [0, -8, 0] }}
                       transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
@@ -289,13 +445,11 @@ export default function Home() {
                         className="drop-shadow-md"
                       />
                     </motion.div>
-                    {/* Jam & Status Cuaca */}
                     <div className="mb-4 mt-2">
                       <p className="text-base text-white drop-shadow">{item.waktu}</p>
                       <p className="font-bold uppercase text-2xl text-black drop-shadow">{item.cuaca}</p>
                     </div>
-                    {/* Valid/Satellite/Issue Time */}
-                    <div className="w-full text-left text-sm text-black/90 leading-relaxed font-medium mb-3 space-y-0.5">
+                    <div className="w-full text-center text-sm text-black/90 leading-relaxed font-medium mb-3 space-y-0.5">
                       <div>Valid Time: <b>{item.VT || item.waktu}</b></div>
                       <div>Satellite Time: <b>{item.ST || '-'}</b></div>
                       <div>Issue Time: <b>{item.IS || '-'}</b></div>
@@ -307,33 +461,95 @@ export default function Home() {
                       Detail
                     </button>
                   </motion.div>
-                ))
-              )}
+                ))}
+              </div>
+              <button
+                aria-label="Next"
+                onClick={() => canNext && setStartIndex(startIndex + cardsPerPage)}
+                disabled={!canNext}
+                className={`
+                  absolute top-1/2 right-2 transform -translate-y-1/2
+                  bg-white/80 hover:bg-white rounded-full p-2 shadow z-10
+                  ${!canNext ? 'opacity-50 cursor-not-allowed' : ''}
+                `}
+              >›</button>
             </div>
-            {/* Next */}
-            <button
-              aria-label="Next"
-              onClick={() => canNext && setStartIndex(startIndex + cardsPerPage)}
-              disabled={!canNext}
-              className={`bg-white/80 hover:bg-white rounded-full w-14 h-14 flex items-center justify-center text-3xl font-bold shadow-lg transition
-                ${!canNext ? 'opacity-40 cursor-pointer' : 'cursor-pointer'}
-                absolute right-0 top-1/2 -translate-y-1/2 z-10
-                sm:static sm:translate-y-0
-              `}
-              style={{ zIndex: 2 }}
+          )}
+
+
+          {showAll && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="
+                w-full max-w-4xl mx-auto mt-6
+                bg-gradient-to-r from-purple-600 to-indigo-500
+                text-white p-8 rounded-3xl shadow-2xl
+                backdrop-blur-md border border-white/20
+              "
             >
-              &gt;
-            </button>
-          </div>
-          {/* Dua Box: Siaga dan Tentang CBM */}
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-center mb-6 drop-shadow">
+                 Deskripsi<span className="text-yellow-300"> Waktu Prakiraan</span>
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  className="
+                    flex flex-col items-center p-4
+                    bg-white/20 rounded-2xl
+                    backdrop-blur-sm border border-white/30
+                  "
+                >
+                  <span className="text-4xl mb-2">🕒</span>
+                  <h3 className="font-semibold mb-1">Valid Time</h3>
+                  <p className="text-sm text-center">
+                    Waktu di mana prediksi cuaca ini berlaku.
+                  </p>
+                </motion.div>
+
+
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  className="
+                    flex flex-col items-center p-4
+                    bg-white/20 rounded-2xl
+                    backdrop-blur-sm border border-white/30
+                  "
+                >
+                  <span className="text-4xl mb-2">🛰️</span>
+                  <h3 className="font-semibold mb-1">Satellite Time</h3>
+                  <p className="text-sm text-center">
+                    Waktu saat citra satelit diambil.
+                  </p>
+                </motion.div>
+
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  className="
+                    flex flex-col items-center p-4
+                    bg-white/20 rounded-2xl
+                    backdrop-blur-sm border border-white/30
+                  "
+                >
+                  <span className="text-4xl mb-2">📡</span>
+                  <h3 className="font-semibold mb-1">Issue Time</h3>
+                  <p className="text-sm text-center">
+                    Waktu saat data prediksi diterbitkan.
+                  </p>
+                </motion.div>
+              </div>
+            </motion.div>
+          )}
+
+
           <div className="mt-8 w-full flex flex-col lg:flex-row gap-6 justify-center items-stretch max-w-6xl">
-            {/* Box Siaga */}
             <div className="flex-1 bg-white/80 backdrop-blur-sm rounded-xl shadow-md p-6 text-gray-800">
               <h1 className="text-xl md:text-2xl font-bold text-blue-700 text-center mb-1">
                 INFORMASI KESIAP–SIAGAAN BANJIR DAN HUJAN
               </h1>
               <p className="text-center text-sm md:text-base text-gray-600 mb-4">
-                Wilayah Majalaya, Cekungan Bandung, & Sekitarnya
+                Wilayah Cekungan Bandung, & Sekitarnya
               </p>
               <div className="space-y-1 text-sm md:text-base text-center">
                 <p>🕒 Prediksi: <span className="font-semibold">{jamPrediksi}</span></p>
@@ -350,7 +566,7 @@ export default function Home() {
                     <>
                       <li>Hindari daerah cekungan</li>
                       <li>Siapkan perlindungan hujan</li>
-                      <li>Ikuti update CBM Satellite Weather System</li>
+                      <li>Ikuti update CBS Weather System</li>
                     </>
                   ) : (
                     <>
@@ -370,14 +586,11 @@ export default function Home() {
                 </button>
               </div>
             </div>
-            {/* Box Tentang CBM */}
             <div className="flex-1 bg-white/80 backdrop-blur-sm rounded-xl shadow-md p-6 flex flex-col items-center justify-center min-h-[460px]">
               <div className="w-full max-w-md text-center">
-                {/* Judul */}
                 <h2 className="text-xl sm:text-2xl font-extrabold text-blue-800 mb-4 tracking-wide">
-                  TENTANG CBM SATELLITE WEATHER SYSTEM
+                  TENTANG CBS WEATHER SYSTEM
                 </h2>
-                {/* Gambar GIF */}
                 <div className="flex justify-center mb-4">
                   <Image
                     src="/gif/home.gif"
@@ -387,17 +600,15 @@ export default function Home() {
                     className="rounded-xl object-contain"
                   />
                 </div>
-                {/* Deskripsi */}
                 <p className="text-sm sm:text-base leading-relaxed text-gray-800">
-                  <span className="font-bold">CBM Satellite Weather System</span> adalah sistem prediksi cuaca yang dirancang khusus untuk wilayah <span className="font-bold">Cekungan Bandung dan Majalaya (CBM)</span>.
-                  Sistem ini memprediksi cuaca 30 dan 60 menit lebih awal (lag 30 & lag 60 menit), dan akan terus diperbarui setiap 10 menit agar masyarakat selalu siap menghadapi perubahan cuaca secara real-time.
+                  <span className="font-bold">CBS Weather System</span> adalah layanan prakiraan cuaca khusus untuk wilayah <span className="font-bold">Cekungan Bandung dan sekitarnya</span>. 
+                  Sistem ini dapat memprediksi cuaca hingga satu jam ke depan, dan diperbarui setiap 10 menit agar Anda selalu mendapatkan informasi terbaru secara real-time.
                 </p>
               </div>
             </div>
           </div>
-          {/* Footer */}
           <div className="mt-10 flex flex-col items-center text-center gap-4">
-            <p className="text-white font-semibold text-lg">Download aplikasi CBM untuk Mobile</p>
+            <p className="text-white font-semibold text-lg">Download aplikasi CBS untuk Mobile</p>
             <a href="https://play.google.com/store" target="_blank" rel="noopener noreferrer">
               <Image src="/logos/PlayStore.png" alt="Playstore" width={160} height={48} />
             </a>
@@ -415,6 +626,7 @@ export default function Home() {
           </div>
         </div>
       </div>
+      )}
     </>
   );
 }

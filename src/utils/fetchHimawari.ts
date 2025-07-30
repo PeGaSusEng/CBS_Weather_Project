@@ -6,7 +6,7 @@ export interface HimawariFrame {
 }
 
 export async function fetchHimawariList(): Promise<HimawariFrame[]> {
-  const res = await fetch('/api/list_data_satelite'); // Panggil API route Next.js
+  const res = await fetch('/api/list_data_satelite'); 
   if (!res.ok) throw new Error('Failed to fetch Himawari frames');
   return await res.json();
 }

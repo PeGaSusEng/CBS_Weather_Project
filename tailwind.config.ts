@@ -1,6 +1,4 @@
-// Import tipe 'Config' dari tailwindcss
 import type { Config } from "tailwindcss";
-// Import 'withMT' dari material-tailwind
 const withMT = require("@material-tailwind/react/utils/withMT");
 
 const config: Config = withMT({
@@ -35,15 +33,21 @@ const config: Config = withMT({
       backgroundImage: {
         weather: "url('/image/background_home.png')",
       },
-      animation: {
-        'bounce-slow': 'bounce 3s infinite',
-        float: 'float 2.5s ease-in-out infinite',
-      },
       keyframes: {
         float: {
           '0%, 100%': { transform: 'translateY(0)' },
           '50%': { transform: 'translateY(-6px)' },
         },
+        'gradient-pan': {
+          '0%':   { backgroundPosition: '0% 50%' },
+          '50%':  { backgroundPosition: '100% 50%' },
+          '100%': { backgroundPosition: '0% 50%' },
+        },
+      },
+      animation: {
+        'bounce-slow': 'bounce 3s infinite',
+        float:        'float 2.5s ease-in-out infinite',
+        'gradient-pan': 'gradient-pan 8s ease infinite',
       },
     },
   },

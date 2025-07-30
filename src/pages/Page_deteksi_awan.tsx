@@ -21,8 +21,8 @@ export default function Page_Deteksi_awan() {
   return (
     <>
       <Head>
-        <title>CBM-Deteksi Awan</title>
-        <meta name="description" content="Sistem Prediksi Cuaca Cekungan Bandung dan Majalaya" />
+        <title>CBS-Deteksi Awan</title>
+        <meta name="description" content="Sistem Prediksi Cuaca Cekungan Bandung dan Sekitarnya" />
       </Head>
       <div className="min-h-screen flex flex-col overflow-x-hidden overflow-y-hidden bg-gray-950">
         <Navbar />

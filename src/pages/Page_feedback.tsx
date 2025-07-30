@@ -56,7 +56,7 @@ export default function FeedbackForm() {
 
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white shadow-lg rounded-lg mt-10">
-      <h2 className="text-2xl font-bold mb-6 text-center">Form Feedback CBM Satellite Weather System</h2>
+      <h2 className="text-2xl font-bold mb-6 text-center">Form Feedback CBS Weather System</h2>
 
       {successMessage ? (
         <div className="text-center">

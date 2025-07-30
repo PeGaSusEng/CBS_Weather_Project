@@ -1,24 +1,24 @@
-// src/pages/api/himawari9-proxy.ts
-import type { NextApiRequest, NextApiResponse } from 'next';
+// pages/api/himawari9-edge.ts
+import { NextRequest, NextResponse } from 'next/server'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const { filename } = req.query;
-  if (!filename || typeof filename !== 'string') {
-    return res.status(400).json({ error: 'Missing filename' });
+export const config = {
+  runtime: 'edge',
+  regions: ['all'],
+}
+
+export default async function handler(req: NextRequest) {
+  const url = new URL(req.url)
+  const filename = url.searchParams.get('filename')
+  if (!filename) {
+    return NextResponse.json({ error: 'Missing filename' }, { status: 400 })
   }
 
-  const url = `https://cbmweather.my.id/api/himawari9/${filename}`;
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      return res.status(404).json({ error: 'Image not found' });
+  const externalUrl = `https://cbmweather.my.id/api/himawari9/${filename}`
+
+  return NextResponse.redirect(externalUrl, {
+    status: 307,
+    headers: {
+      'Cache-Control': 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400'
     }
-    const buffer = await response.arrayBuffer();
-    res.setHeader('Content-Type', 'image/png');
-    // ganti baris ini:
-    res.setHeader('Cache-Control', 'public, max-age=300');
-    res.status(200).send(Buffer.from(buffer));
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to proxy image' });
-  }
+  })
 }

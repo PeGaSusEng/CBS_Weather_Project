@@ -89,12 +89,12 @@ async function getRainfallData(
   }
   let data = await response.json();
 
-  // 1) Urutkan ascending berdasarkan waktu
+
   data.sort((a: any, b: any) =>
     new Date(a.waktu_wib).getTime() - new Date(b.waktu_wib).getTime()
   );
 
-  // 2) Map ke labels / values
+
   const labels = data.map((item: any) => {
     const d = new Date(item.waktu_wib);
     const day = d.getDate();
@@ -111,7 +111,6 @@ async function getRainfallData(
 }
 
 
-// di scope module, di atas komponen:
 const regionObsCache = new Map<
   string,
   { labels: string[]; values: number[] }
@@ -128,7 +127,6 @@ async function getRegionRainfallData(
   if (!res.ok) return { labels: [], values: [] };
   const allData: Array<{ filename: string; data: { waktu_wib: string; ch_mm: number }[] }> = await res.json();
 
-  // filter dan pilih file terbaru seperti sebelumnya...
   const regionFiles = allData
     .filter(item => item.filename.includes(`AWS_${region}`))
     .map(item => item.filename)
@@ -142,7 +140,7 @@ async function getRegionRainfallData(
   const latestFilename = regionFiles[0];
   const obs = allData.find(item => item.filename === latestFilename)!.data;
 
-  // **Urutkan ascending** berdasarkan waktu
+
   obs.sort((a, b) =>
     new Date(a.waktu_wib).getTime() - new Date(b.waktu_wib).getTime()
   );
@@ -220,8 +218,7 @@ const PetaCBM = () => {
   const [currentDatetime, setCurrentDatetime] = useState<string>('');
   const [currentLegendIndex, setCurrentLegendIndex] = useState<number>(0);
   const [gsmapcekLegendList, setGsmapcekLegendList] = useState<any[]>([]);
-  const [legendVisible, setLegendVisible] = useState<boolean>(true);
-  const bounds = new LatLngBounds([-7.28, 107.58], [-6.92, 107.94]); // Wilayah CBM 
+  const bounds = new LatLngBounds([-7.28, 107.58], [-6.92, 107.94]); 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
  
@@ -327,19 +324,15 @@ const PetaCBM = () => {
       fetchData();
     }, []);
 
-    // Navigasi next/prev tetap menggunakan indeks terurut
   useEffect(() => {
     if (gsmapcekLegendList.length > 0 && gsmapcekOverlayList.length > 0) {
       setCurrentDatetime(gsmapcekOverlayList[currentOverlayIndex]?.datetime || '');
-      
-      // Gunakan URL yang sudah diproxy (tanpa alamat IP backend)
       setGsmapcekLegendUrl(gsmapcekLegendList[currentLegendIndex]?.url || '');
     }
   }, [currentOverlayIndex, currentLegendIndex, gsmapcekOverlayList, gsmapcekLegendList]);
   return (
     <div className="container mx-auto p-4">
       <div className="flex flex-col lg:flex-row gap-6">
-        {/* Map Section */}
         <div className="w-full lg:w-1/2">
           <MapContainer
             style={{ height: '700px', width: '100%' }}
@@ -348,19 +341,59 @@ const PetaCBM = () => {
             zoom={13}
           >
             <LayersControl position="topright">
-              <LayersControl.BaseLayer checked name="Satellite">
+              <LayersControl.BaseLayer checked name="Peta Navigasi">
+                <TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution="&copy; OpenStreetMap contributors"
+                />
+              </LayersControl.BaseLayer>
+              <LayersControl.BaseLayer name="Satelit">
                 <TileLayer
                   url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
                   attribution="Tiles © Esri"
                 />
-                
               </LayersControl.BaseLayer>
-              <LayersControl.BaseLayer name="Light">
+              <LayersControl.BaseLayer name="Peta Terang">
                 <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png" />
               </LayersControl.BaseLayer>
-                <LayersControl.BaseLayer name="Dark">
-                  <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png" />
-                </LayersControl.BaseLayer>
+              <LayersControl.BaseLayer name="Peta Gelap">
+                <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png" />
+              </LayersControl.BaseLayer>
+
+              <LayersControl.Overlay name="Peta GSMaP" checked={false}>
+                {gsmapcekOverlayList.length > 0 && (
+                  <ImageOverlay
+                    bounds={bounds}
+                    url={gsmapcekOverlayList[currentOverlayIndex]?.url}
+                    opacity={0.78}
+                    zIndex={1000}
+                  />
+                )}
+              </LayersControl.Overlay>
+
+   
+              <LayersControl.Overlay name="Legenda GSMaP" checked={false}>
+                <div style={{
+                  position: 'absolute',
+                  bottom: '10px',
+                  left: '10px',
+                  zIndex: 1000,
+                  backgroundColor: 'white',
+                  padding: '5px',
+                  borderRadius: '5px',
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                }}>
+                  {gsmapcekLegendUrl && (
+                    <Image
+                      src={gsmapcekLegendUrl}
+                      alt="GS Map Legend"
+                      width={90}
+                      height={90}
+                      style={{ objectFit: 'contain', width: '100%', height: 'auto' }}
+                    />
+                  )}
+                </div>
+              </LayersControl.Overlay>
             </LayersControl>
             {wilayahList.map((region, idx) => (
               <CircleMarker
@@ -378,47 +411,7 @@ const PetaCBM = () => {
                 <Tooltip>{region.name}</Tooltip>
               </CircleMarker>
             ))}
-            {/* Overlay GSMap */}
-              <LayersControl.BaseLayer name="Legenda" checked={legendVisible} >
-                {legendVisible && gsmapcekLegendUrl && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      bottom: '10px',
-                      left: '10px',
-                      zIndex: 1000,
-                      width: 'auto',
-                      height: '190px',
-                      backgroundColor: 'white',
-                      borderRadius: '5px',
-                      padding: '5px',
-                      boxShadow: '0px 4px 6px rgba(0,0,0,0.1)',
-                      }}
-                    >
-                    <div className="w-[90px]">
-                      <Image
-                        src={gsmapcekLegendUrl}
-                        alt="GS Map Legend"
-                        width={90}
-                        height={90}
-                        style={{ objectFit: "contain", width: "100%", height: "auto" }}
-                      />
-                    </div>
-
-
-                    </div>
-                    )}
-                    </LayersControl.BaseLayer>
-                    {gsmapcekOverlayList.length > 0 && (
-                      <ImageOverlay
-                        key={currentOverlayIndex}
-                        bounds={bounds}
-                        url={gsmapcekOverlayList[currentOverlayIndex]?.url} 
-                        opacity={0.78}
-                      />
-                    )}
           </MapContainer>
-            {/* Navigation Control */}
             <br />
             <div className="flex justify-center mt-4">
               <div className="bg-gray-800 rounded-xl px-4 py-2 flex items-center gap-4 shadow-lg">
@@ -447,14 +440,12 @@ const PetaCBM = () => {
               </div>
             </div>
         </div>
-        {/* Chart */}
         <div className="w-full lg:w-1/2">
           <div className="bg-white rounded-lg shadow-md p-4 h-full">
             <h2 className="text-xl font-bold mb-4">
               {selectedRegion ? `Curah Hujan dan Evaluasi Model Prediksi di ${selectedRegion}` : 'Pilih Wilayah'}
             </h2>
 
-            {/* Render chart data  */}
             {chartData && chartData.chart1 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div className="bg-gray-50 p-4 rounded-lg">
@@ -487,7 +478,6 @@ const PetaCBM = () => {
               <p>Data sedang dimuat...</p>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            {/* Chart 3 (Bar Chart) */}
             {chartData && chartData.chart3 && (
               <div className="bg-gray-50 p-4 rounded-lg mb-6">
                 <h3 className="font-semibold mb-2">Rata-rata Akurasi Model Prediksi</h3>
@@ -508,11 +498,6 @@ const PetaCBM = () => {
                     <h3 className="font-semibold mb-2">Informasi Wilayah</h3>
                       <div className="h-64 p-4 overflow-y-auto">
                         <h4 className="font-medium text-lg">{selectedRegion}</h4>
-                        <p className="mt-2 text-gray-600">
-                          Data curah hujan Satelit dan observasi untuk wilayah {selectedRegion}.
-                          Akurasi model berfungsi untuk menilai seberapa mungkin dalam kurung waktu
-                          30 menit dan 60 menit ke depan terjadinya hujan.
-                        </p>
                         <div className="mt-4 space-y-2">
                           <p><span className="font-medium">Koordinat:</span> {
                             wilayahList.find(r => r.name === selectedRegion)?.lat + ', ' + 
@@ -520,11 +505,50 @@ const PetaCBM = () => {
                           }</p>
                           <p><span className="font-medium">Update Terakhir:</span> {new Date().toLocaleDateString()} </p>
                         </div>
+                        <div className="overflow-y-auto max-h-40 p-2 bg-white rounded-lg shadow-sm">
+                          <p className="text-xs leading-tight text-gray-600">
+                            Data satelit dan hasil observasi lapangan digunakan untuk memperkirakan peluang hujan di wilayah{' '}
+                            <span className="font-medium text-indigo-600">{selectedRegion}</span> dari sekarang hingga{' '}
+                            <span className="font-medium">30–60 menit</span> ke depan. Akurasi model disajikan sebagai probabilitas terjadinya{' '}
+                            <span className="text-green-600 font-medium">hujan</span> dan{' '}
+                            <span className="text-red-600 font-medium">tidak hujan</span> pada rentang waktu{' '}
+                            <span className="px-1 bg-gray-100 rounded">30 menit</span> maupun{' '}
+                            <span className="px-1 bg-gray-100 rounded">60 menit</span> ke depan, dihitung sejak saat ini.
+                          </p>
+                        </div>
                       </div>
                     </div>
                     </>
                   ) : (
-                    <p className="text-gray-500">Klik pada marker di peta GSMAP untuk melihat persebaran data hujan tiap wilayah</p>
+                      <div className="max-w-lg mx-auto mt-6 bg-white border border-gray-200 rounded-lg shadow hover:shadow-lg transition-shadow">
+                        <div className="flex items-center space-x-2 bg-blue-50 px-4 py-3 rounded-t-lg">
+                          <span className="text-blue-600 text-xl">ℹ️</span>
+                          <h3 className="text-lg font-semibold text-gray-800">Petunjuk Interaksi Peta</h3>
+                        </div>
+                        <div className="p-4 space-y-4">
+                          <p className="text-gray-600">
+                            Klik <span className="font-medium text-blue-600">titik biru</span> di peta untuk menampilkan grafik perbandingan curah hujan{' '}
+                            <span className="font-semibold">GSMaP</span> (estimasi satelit) dan <span className="font-semibold">AWS</span> (data observasi) selama
+                            24 jam terakhir di lokasi Cekungan Bandung.
+                          </p>
+                          <div className="space-y-4">
+                            <div>
+                              <h4 className="text-sm font-semibold text-gray-700">GSMaP</h4>
+                              <p className="text-sm text-gray-500">
+                                <strong>Global Satellite Mapping of Precipitation</strong>: data curah hujan yang <em>diestimasi</em> dari citra satelit untuk memperlihatkan
+                                sebaran hujan di area luas.
+                              </p>
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-semibold text-gray-700">AWS (Observasi)</h4>
+                              <p className="text-sm text-gray-500">
+                                <strong>Automatic Weather Station</strong>: data curah hujan yang <em>diukur langsung</em> oleh sensor di stasiun cuaca otomatis, memberikan
+                                akurasi tinggi di titik lokasi.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                   )}
             </div>
           </div>

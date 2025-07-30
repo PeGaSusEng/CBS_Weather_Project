@@ -31,7 +31,7 @@ export default function PieAwan24Jam() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const handleResize = () => setIsMobile(window.innerWidth < 500);
-      handleResize(); // Set initial value
+      handleResize(); 
       window.addEventListener("resize", handleResize);
 
       return () => window.removeEventListener("resize", handleResize);
@@ -72,7 +72,7 @@ export default function PieAwan24Jam() {
     );
     const tglAwal = sorted[0].timestamp.replace("T", " ").slice(0, 16);
     const tglAkhir = sorted[sorted.length - 1].timestamp.replace("T", " ").slice(0, 16);
-    labelPie = `Distribusi Awan\n${tglAwal} — ${tglAkhir}`;
+    labelPie = `Jumlah Distribusi Awan\n${tglAwal} — ${tglAkhir}`;
   }
 
   if (loading) return <div className="p-4">Loading...</div>;

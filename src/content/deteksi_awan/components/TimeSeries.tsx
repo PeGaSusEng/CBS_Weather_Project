@@ -31,10 +31,9 @@ export default function TimeSeriesAwanCustomLabel() {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    // Pastikan kode hanya dijalankan di browser (client-side)
     if (typeof window !== 'undefined') {
       const handleResize = () => setIsMobile(window.innerWidth < 520);
-      handleResize(); // Set initial value
+      handleResize(); 
       window.addEventListener("resize", handleResize);
 
       return () => window.removeEventListener("resize", handleResize);
@@ -80,8 +79,8 @@ export default function TimeSeriesAwanCustomLabel() {
   if (!data.length) return <div className="p-2 text-xs text-red-500">Data tidak ditemukan.</div>;
 
   const xInterval = isMobile
-    ? Math.max(1, Math.floor(data.length / 3))  // adjust this for more space on mobile
-    : Math.ceil(data.length / 10); // Default for desktop
+    ? Math.max(1, Math.floor(data.length / 3))  
+    : Math.ceil(data.length / 10); 
 
   return (
     <div className="w-full h-full flex flex-col justify-between bg-transparent p-0">
@@ -93,7 +92,7 @@ export default function TimeSeriesAwanCustomLabel() {
           <LineChart
             data={data}
             margin={{
-              top: isMobile ? 16 : 20,    // Adjust margin for mobile
+              top: isMobile ? 16 : 20,    
               right: isMobile ? 3 : 15,
               bottom: isMobile ? 26 : 40,
               left: isMobile ? 12 : 40

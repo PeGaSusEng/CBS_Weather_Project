@@ -1,12 +1,14 @@
 'use client';
 import dynamic from 'next/dynamic';
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback,useMemo } from 'react';
 import { useMap } from 'react-leaflet';
 import { restartSchedulerVisibelAwan } from '@/utils/refresh';
 import { fetchHimawariList, HimawariFrame } from '@/utils/fetchHimawari';
 import { GeoJSON } from 'react-leaflet'; 
 import debounce from 'lodash.debounce';
 import { CircleMarker as LeafletCircleMarker, Tooltip } from 'react-leaflet';
+import type { FeatureCollection } from 'geojson';
+
 
 
 function InvalidateOnFrameChange({ frame }: { frame: any }) {
@@ -206,7 +208,7 @@ export default function FullMapPage() {
   const [cloudDots, setCloudDots] = useState<CloudDot[]>([]);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
   const [showGoogle, setShowGoogle] = useState(false);
-  const [geojsonData, setGeojsonData] = useState(null);
+  const [geojsonData, setGeojsonData] = useState<FeatureCollection | null>(null);
   const [map, setMap] = useState<any>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const mapRef = useRef<any>(null);
@@ -217,35 +219,28 @@ export default function FullMapPage() {
   const legendItems = CLOUD_LEGEND[mode];
   const animRef = useRef<number>();
   const lastTimeRef = useRef<number>(0);
+  const imgCache = useRef<Record<string, HTMLImageElement>>({})
 
    // ========== ANIMASI FRAME ========== 
    const frame = frames.length ? frames[current] : undefined;
-   const overlayUrl = frame
-      ? `/api/image_frame_himawari?filename=${encodeURIComponent(frame.filename)}`
-      : ''
+   const overlayUrl = useMemo(() => {
+      if (!frame) return ''
+      return `/api/image_frame_himawari?filename=${encodeURIComponent(frame.filename)}`
+    }, [frame?.filename])
 
-    useEffect(() => {
-      if (!frame || !isClient || !map || !leaflet) return;
-      const loadAndDecode = async () => {
-        const img = new Image();
-        img.crossOrigin = 'Anonymous';
-        img.src = `/api/image_frame_himawari?filename=${encodeURIComponent(frame.filename)}`;
-        try {
-          await img.decode();  
-          const w = img.width / 2, h = img.height / 2;
-          const nw = map.unproject([0, 0], map.getMaxZoom());
-          const se = map.unproject([w, h], map.getMaxZoom());
-          setImageBounds(new leaflet.LatLngBounds(nw, se));
-        } catch (err) {
-          console.error('Gagal decode image:', err);
-        }
-      };
-
-      loadAndDecode();  
-      return () => {
-        setImageBounds(null);
-      };
-    }, [frame, isClient, map, leaflet]);
+  useEffect(() => {
+    // Misal fetchHimawariList sudah set state frames
+    frames.forEach(f => {
+      // hanya preload sekali per filename
+      if (!imgCache.current[f.filename]) {
+        const img = new Image()
+        img.crossOrigin = 'Anonymous'
+        img.src = `/api/image_frame_himawari?filename=${encodeURIComponent(f.filename)}`
+        img.decode().catch(() => {})  // optional: tunggu decode
+        imgCache.current[f.filename] = img
+      }
+    })
+  }, [frames])
 
 
   const getData = useCallback(async () => {
@@ -283,99 +278,99 @@ export default function FullMapPage() {
     );
   }, [frame]);
 
-  useEffect(() => {
-    if (!frame || !isClient || !showCloudDetection) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+//  useEffect(() => {
+    //if (!frame || !isClient || !showCloudDetection) return;
+    //const canvas = canvasRef.current;
+    //if (!canvas) return;
+    //const ctx = canvas.getContext('2d');
+    //if (!ctx) return;
 
-    let alive = true;
+    //let alive = true;
 
-    (async () => {
-      try {
+    //(async () => {
+      //try {
         // 1. Ambil PNG sebagai Blob
-        const res = await fetch(overlayUrl, { cache: 'no-store' });
-        const blob = await res.blob();
+        //const res = await fetch(overlayUrl, { cache: 'no-store' });
+        //const blob = await res.blob();
 
         // 2. Buat ImageBitmap (decode + upload GPU lebih cepat)
-        const bitmap = await createImageBitmap(blob);
-        if (!alive) return;
+        //const bitmap = await createImageBitmap(blob);
+        //if (!alive) return;
 
         // 3. Set ukuran canvas & gambar bitmap-nya
-        canvas.width = bitmap.width;
-        canvas.height = bitmap.height;
-        ctx.drawImage(bitmap, 0, 0);
+        //canvas.width = bitmap.width;
+        //canvas.height = bitmap.height;
+        //ctx.drawImage(bitmap, 0, 0);
 
         // 4. Ambil data piksel seperti sebelumnya
-        const data = ctx.getImageData(0, 0, bitmap.width, bitmap.height).data;
-        const legend = CLOUD_LEGEND[mode];
-        const [south, west] = BOUNDS_INDO[0];
-        const [north, east] = BOUNDS_INDO[1];
-        const imgW = bitmap.width, imgH = bitmap.height;
+        //const data = ctx.getImageData(0, 0, bitmap.width, bitmap.height).data;
+        //const legend = CLOUD_LEGEND[mode];
+        //const [south, west] = BOUNDS_INDO[0];
+        //const [north, east] = BOUNDS_INDO[1];
+        //const imgW = bitmap.width, imgH = bitmap.height;
 
         // hitung batas pixel X/Y
-        const xMin = Math.floor(((AREA_EXTENT.minLon - west) / (east - west)) * imgW);
-        const xMax = Math.ceil (((AREA_EXTENT.maxLon - west) / (east - west)) * imgW);
-        const yMin = Math.floor(imgH - ((AREA_EXTENT.maxLat - south) / (north - south)) * imgH);
-        const yMax = Math.ceil (imgH - ((AREA_EXTENT.minLat - south) / (north - south)) * imgH);
+        //const xMin = Math.floor(((AREA_EXTENT.minLon - west) / (east - west)) * imgW);
+        //const xMax = Math.ceil (((AREA_EXTENT.maxLon - west) / (east - west)) * imgW);
+        //const yMin = Math.floor(imgH - ((AREA_EXTENT.maxLat - south) / (north - south)) * imgH);
+        //const yMax = Math.ceil (imgH - ((AREA_EXTENT.minLat - south) / (north - south)) * imgH);
 
         // struktur kategori & template yg sama
-        const categories = legend.map(cat => ({ ...cat, pixels: [] as { x: number; y: number }[] }));
-        const templates = legend.map(cat => {
-          const [R, G, B] = cat.rgb;
-          return { ...cat, norm: Math.hypot(R, G, B) };
-        });
+        //const categories = legend.map(cat => ({ ...cat, pixels: [] as { x: number; y: number }[] }));
+        //const templates = legend.map(cat => {
+          //const [R, G, B] = cat.rgb;
+          //return { ...cat, norm: Math.hypot(R, G, B) };
+        //});
 
         // loop deteksi piksel
-        const angleThresh = 0.15;
-        for (let i = 0; i < data.length; i += 4) {
-          const r = data[i], g = data[i+1], b = data[i+2];
-          const idx = i / 4;
-          const x = idx % imgW, y = Math.floor(idx / imgW);
-          if (x < xMin || x > xMax || y < yMin || y > yMax) continue;
-          const pixNorm = Math.hypot(r, g, b);
-          if (!pixNorm) continue;
+        //const angleThresh = 0.15;
+        //for (let i = 0; i < data.length; i += 4) {
+          //const r = data[i], g = data[i+1], b = data[i+2];
+          //const idx = i / 4;
+          //const x = idx % imgW, y = Math.floor(idx / imgW);
+          //if (x < xMin || x > xMax || y < yMin || y > yMax) continue;
+          //const pixNorm = Math.hypot(r, g, b);
+          //if (!pixNorm) continue;
 
-          let bestIdx = -1, bestAngle = Infinity;
-          templates.forEach((tpl, j) => {
-            const dot = r*tpl.rgb[0] + g*tpl.rgb[1] + b*tpl.rgb[2];
-            const cosθ = dot/(pixNorm * tpl.norm);
-            const angle = Math.acos(Math.min(1, Math.max(-1, cosθ)));
-            if (angle < bestAngle) {
-              bestAngle = angle;
-              bestIdx = j;
-            }
-          });
-          if (bestIdx >= 0 && bestAngle <= angleThresh) {
-            categories[bestIdx].pixels.push({ x, y });
-          }
-        }
+          //let bestIdx = -1, bestAngle = Infinity;
+          //templates.forEach((tpl, j) => {
+            //const dot = r*tpl.rgb[0] + g*tpl.rgb[1] + b*tpl.rgb[2];
+            //const cosθ = dot/(pixNorm * tpl.norm);
+            //const angle = Math.acos(Math.min(1, Math.max(-1, cosθ)));
+            //if (angle < bestAngle) {
+              //bestAngle = angle;
+              //bestIdx = j;
+            //}
+          //});
+          //if (bestIdx >= 0 && bestAngle <= angleThresh) {
+            //categories[bestIdx].pixels.push({ x, y });
+          //}
+        //}
 
         // sampling & konversi ke lat/lng
-        const markers: CloudDot[] = [];
-        const PIXEL_LIMIT = 100;
-        categories.forEach(cat => {
-          cat.pixels
-            .sort(() => 0.5 - Math.random())
-            .slice(0, PIXEL_LIMIT)
-            .forEach(({ x, y }) => {
-              const [lat, lon] = pixelToLatLng(x, y, imgW, imgH);
-              markers.push({ lat, lon, name: cat.name, rgb: cat.rgb });
-            });
-        });
+        //const markers: CloudDot[] = [];
+        //const PIXEL_LIMIT = 100;
+        //categories.forEach(cat => {
+          //cat.pixels
+            //.sort(() => 0.5 - Math.random())
+            //.slice(0, PIXEL_LIMIT)
+            //.forEach(({ x, y }) => {
+              //const [lat, lon] = pixelToLatLng(x, y, imgW, imgH);
+              //markers.push({ lat, lon, name: cat.name, rgb: cat.rgb });
+            //});
+        //});
 
-        setCloudDots(markers);
-      } catch (err) {
-        console.error('Error fetching/bitmap:', err);
-        if (alive) setCloudDots([]);
-      }
-    })();
+        //setCloudDots(markers);
+      //} catch (err) {
+        //console.error('Error fetching/bitmap:', err);
+        //if (alive) setCloudDots([]);
+      //}
+    //})();
 
-    return () => {
-      alive = false;
-    };
-  }, [frame, mode, overlayUrl, showCloudDetection, isClient]);
+    //return () => {
+      //alive = false;
+    //};
+  //}, [frame, mode, overlayUrl, showCloudDetection, isClient]);
 
     // ====== LOAD GARIS PANTAI ========
     useEffect(() => {
@@ -449,12 +444,29 @@ export default function FullMapPage() {
 
   // ========== HANDLER UI ==========
 
-  // Fungsi untuk memuat GeoJSON
-  const loadGeojson = async () => {
-    const response = await fetch('/geojson/Indo.json');
-    const data = await response.json();
-    setGeojsonData(data);
-  };
+    const loadGeojson = async () => {
+      const urls = [
+        '/geojson/Indo.json', 
+        '/geojson/gabung_2.json',
+        '/geojson/gabung_3.json',
+        '/geojson/gabung_4.json',
+        '/geojson/gabung_5.json',
+        '/geojson/gabung.json',
+        '/geojson/Ibun.json',
+        '/geojson/Majalaya.json',
+        '/geojson/Mekarjaya.json',
+        '/geojson/Pacet.json',
+        '/geojson/Cikaroya_Majalaya_sekitarnya.json'
+      ];
+      const datasets = await Promise.all(urls.map(u => fetch(u).then(r => r.json())));
+      const merged: FeatureCollection = {
+        type: 'FeatureCollection',
+        features: datasets.flatMap((d: any) => d.features),
+      };
+      setGeojsonData(merged);
+    };
+
+
 
   const handleMode = () => {
     const newMode = mode === 'truecolor' ? 'natural' : 'truecolor';
@@ -654,51 +666,32 @@ const RefreshIcon = () => (
     />
   </svg>
 );
-
-
- 
-
-
   
   return (
     <div className="relative w-full min-h-screen bg-gray-950 overflow-hidden">
       <canvas ref={canvasRef} style={{ display: 'none' }} />
-     
-      {!showAnalisis && (
-            <div
-              className="
-                fixed
-                top-[98px]
-                left-4
-                z-50
-                hidden        
-                sm:flex      
-                flex-col gap-2
-                bg-black bg-opacity-60
-                p-3 rounded-md
-                max-w-xs md:max-w-sm
-              "
-            > 
-            <div className='text-white'>Keterangan</div>
-              {legendItems.map(cat => (
-                <div key={cat.name} className="flex items-center space-x-2">
-                  <span
-                    className="w-4 h-4 rounded-sm border border-white/30"
-                    style={{ backgroundColor: `rgb(${cat.rgb.join(',')})` }}
-                  />
-                  <span className="text-white text-xs md:text-sm">
-                    {cat.name}
-                  </span>
-                </div>
-              ))}
-              <p className='text-white text-xs'>Apabila tidak terdeteksi, maka tidak ada objek</p>
-              <p className="text-white text-xs italic mt-1">
-                Sumber: Introduction Himawari-8 RGB Composite
-              </p>
-
-            </div>
-          )}
-
+      {/* Legend */}
+     {!showAnalisis && (
+       <div
+          className="
+            fixed top-[98px] left-4 z-50
+            hidden sm:flex flex-col gap-2
+            bg-black bg-opacity-60 p-4 rounded-lg
+            max-w-xs md:max-w-sm
+          "
+        >
+          <h3 className="text-white font-semibold text-lg">Keterangan</h3>
+          <ul className="list-disc list-inside text-white text-sm space-y-1 mt-2">
+            <li>◻️ Langit Cerah → area tanpa awan</li>
+            <li>🌫️ Awan Tipis → noda putih samar</li>
+            <li>☁️ Awan Campuran → gumpalan awan sedang</li>
+            <li>🌩️ Cumulonimbus (Cb) → tonjolan awan gelap/tebal</li>
+          </ul>
+          <p className="text-white text-xs italic mt-3">
+            Sumber: Introduction Himawari-8 RGB Composite
+          </p>
+       </div>
+     )}
 
 
    
@@ -749,7 +742,7 @@ const RefreshIcon = () => (
               key={w.name}
               center={[w.lat, w.lon]}
               radius={6}
-              pathOptions={{ color: '#38A169', fillColor: '#38A169', fillOpacity: 1 }}
+              pathOptions={{ color: '#FFD700', fillColor: '#FFD700', fillOpacity: 1 }}
             >
               <Tooltip direction="right" offset={[8, 0]} permanent>
                 <span className="font-bold text-sm">{w.name}</span>
@@ -800,13 +793,6 @@ const RefreshIcon = () => (
               >
                 <TrueColorIcon />
                 <span>{mode === 'truecolor' ? 'True Color' : 'Natural Color'}</span>
-              </button>
-              <button
-                className={`flex items-center gap-2 px-4 py-2 rounded-2xl font-bold border-2 text-[13px] md:text-base ${showCloudDetection ? 'bg-purple-100/80 border-purple-500 text-purple-800' : 'bg-white/80 border-purple-300 text-cyan-700'}`}
-                onClick={handleCloud}
-              >
-                <CloudIcon />
-                <span>Object Detector</span>
               </button>
               <button
                 className={`flex items-center gap-2 px-4 py-2 rounded-2xl font-bold border-2 text-[13px] md:text-base ${showWilayahDots ? 'bg-green-200 border-green-600 text-green-800' : 'bg-white/80 border-green-300 text-cyan-700'}`}
