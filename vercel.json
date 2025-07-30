@@ -1,7 +1,6 @@
 {
   "functions": {
     "api/**/*.ts": {
-      "regions": ["iad1","fra1"]
     }
   }
 }
