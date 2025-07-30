@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export const config = {
   runtime: 'edge',
-  regions: ['all'],
+  regions: ['iad1'],
 }
 
 export default async function handler(req: NextRequest) {
